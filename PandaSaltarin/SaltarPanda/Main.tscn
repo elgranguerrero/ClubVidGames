@@ -1,0 +1,812 @@
+[gd_scene load_steps=25 format=2]
+
+[ext_resource path="res://Escenas/InterMain.png" type="Texture" id=1]
+[ext_resource path="res://Escenas/Font/pixel.ttf" type="DynamicFontData" id=2]
+[ext_resource path="res://Escenas/GameOver.tscn" type="PackedScene" id=3]
+[ext_resource path="res://Escenas/Game_Pause.tscn" type="PackedScene" id=4]
+[ext_resource path="res://Jugador/sp_PandaV2.png" type="Texture" id=5]
+[ext_resource path="res://Enemigo/Enemigo.tscn" type="PackedScene" id=6]
+[ext_resource path="res://Enemigo/EnemigoArea.tscn" type="PackedScene" id=7]
+[ext_resource path="res://RespawnItems.gd" type="Script" id=8]
+[ext_resource path="res://Items/EscudoPrueba.tscn" type="PackedScene" id=9]
+[ext_resource path="res://Items/pruebaVida.tscn" type="PackedScene" id=10]
+[ext_resource path="res://Items/pruebaTiempo.tscn" type="PackedScene" id=11]
+[ext_resource path="res://Items/ConjuntoVidas.png" type="Texture" id=12]
+[ext_resource path="res://Musica/IntroV2.ogg" type="AudioStream" id=13]
+[ext_resource path="res://Escenas/Botones/BtnIzq.png" type="Texture" id=14]
+[ext_resource path="res://Escenas/Botones/BtnDer.png" type="Texture" id=15]
+[ext_resource path="res://Escenas/Botones/BtnAtk.png" type="Texture" id=16]
+[ext_resource path="res://Escenas/Botones/BtnUp.png" type="Texture" id=17]
+[ext_resource path="res://Escenas/Botones/BtnPauseGame.png" type="Texture" id=18]
+
+[sub_resource type="DynamicFont" id=1]
+
+size = 12
+use_mipmaps = false
+use_filter = false
+font_data = ExtResource( 2 )
+_sections_unfolded = [ "Font", "Settings" ]
+
+[sub_resource type="GDScript" id=2]
+
+script/source = "extends Area2D
+
+var velocidad_coli=Vector2()
+var anim_panda
+
+var velocidad_y=0
+var velocidad_x=0
+var aceleracion=0
+
+var direction_x = 0
+var direction_y = 0
+var touchAtk=false
+var touchUp=false
+
+var move_x = 0
+var move_y = 0
+var salto
+var saltoIzq=true
+var saltoDer=false
+var mover=false
+
+var scoreRan=[100,200,300]
+var score
+var inmunidadP=false
+var vida=3
+var nivel=3
+
+export (PackedScene) var GameOver
+export (PackedScene) var GamePause
+
+func _ready():
+	salto=get_parent().get_node(\"RespawnPanda\").position.x
+	velocidad_y=2
+	velocidad_coli.x=0
+	velocidad_coli.y=0
+	score=0
+	anim_panda=get_node(\"AnimationPlayer\")
+	
+
+	
+func _physics_process(delta):
+	direction_y = int(Input.is_action_pressed(\"ui_up\")) - int(Input.is_action_pressed(\"ui_down\"))
+	if direction_y == 1 || touchUp:
+		_bajar()
+		if (!anim_panda.is_playing()):
+			anim_panda.play_backwards(\"SubirBajar\")
+	elif direction_y == -1:
+		_subir()
+		if (!anim_panda.is_playing()):
+			anim_panda.play(\"SubirBajar\")
+	elif (Input.is_action_pressed(\"atk\") || touchAtk):
+		_atacar()
+	else:
+		_frenar()
+		anim_panda.stop()
+		
+	direction_x = int(Input.is_action_pressed(\"ui_right\")) - int(Input.is_action_pressed(\"ui_left\"))
+	
+	if direction_x == 1:
+		
+		if (position.x<372):
+			_saltDer()
+	elif direction_x == -1:
+		if (position.x>100):
+			_saltIzq()
+	else:
+		move_x=0
+	
+	_update()
+
+
+		
+func _update():
+	velocidad_y=aceleracion*0.05
+	position.y+=velocidad_y*0.05
+	if (int(position.x)>int (salto)):
+		position.x += velocidad_x
+			
+	if (int(position.x)<int(salto)):
+		position.x += velocidad_x
+		
+	
+func _saltDer():
+	aceleracion=0
+	if (int(position.x)==int(salto)):
+		if (saltoDer):
+			salto=salto+80
+			velocidad_x=5
+			saltoDer=false
+			saltoIzq=true
+			mover=true
+			get_node(\"sp_Panda\").flip_h=false
+		else:
+			salto=salto+40
+			saltoDer=true
+			saltoIzq=false
+			mover=true
+			velocidad_x=5
+			get_node(\"sp_Panda\").flip_h=true
+
+func _saltIzq():
+	aceleracion=0
+	if (int(position.x)==int(salto)):
+		if (saltoIzq):
+			salto=salto-80
+			velocidad_x=-5
+			saltoDer=true
+			saltoIzq=false
+			mover=true
+			get_node(\"sp_Panda\").flip_h=true
+		else:
+			salto=salto-40
+			saltoDer=false
+			saltoIzq=true
+			velocidad_x=-5
+			mover=true
+			get_node(\"sp_Panda\").flip_h=false
+			
+func _atacar():
+	if (aceleracion <= 1800):
+		aceleracion =aceleracion+ 400
+
+func _subir():
+	aceleracion = 1000
+	
+func _bajar():
+	aceleracion = -1200
+
+func _frenar():
+	aceleracion=0
+
+#Colsiones con los difereentes actores
+func _on_ActorPanda_area_entered(area):
+	var randomScore=randi()%3
+	if (area.is_in_group(\"Enemigo\")):
+		if (inmunidadP):
+			area.queue_free()
+			score=score+scoreRan[randomScore]
+			get_parent().get_node(\"Score\").set_text((\"Score: \"+str(score)))
+		else:
+			inmunidadP=true
+			get_node(\"TimeInmunidad\").start()
+			salto=get_parent().get_node(\"RespawnPanda\").position.x
+			saltoIzq=true
+			saltoDer=false
+			global_position=get_parent().get_node(\"RespawnPanda\").global_position
+			get_node(\"sp_Panda\").flip_h=false
+			vida-=1
+			get_parent().get_node(\"sp_AniVidas\").frame=3-vida
+			if (vida==-1):
+				print (\"GAME OVER\")
+				var escena_game_over=GameOver.instance()
+				get_tree().get_nodes_in_group(\"main\")[0].add_child(escena_game_over)
+				get_parent().get_node(\"GameOver/AnimationPlayer\").play(\"AniGameOver\")
+				get_tree().paused=true
+				vida=0
+				get_parent().get_node(\"GameOver/Score_GameOver\").set_text((\"Score: \"+str(score)))
+	if (area.is_in_group(\"Shield\")):
+		inmunidadP=true
+		get_node(\"TimeInmunidad\").start()
+		area.queue_free()
+	if (area.is_in_group(\"Tiempo\")):
+		area.queue_free()
+		get_parent().get_node(\"ControlTiempo\").start()
+		get_parent().get_node(\"RespawnEni/TimerEni\").stop()
+		get_parent().get_node(\"RespawnItems/TimerItem\").stop()
+		var auxEni=get_tree().get_nodes_in_group(\"Enemigo\")
+		for aux in auxEni:
+			aux.avance=false
+	if (area.is_in_group(\"Vida\")):
+		if (vida<3):
+			vida+=1
+			area.queue_free()
+			get_parent().get_node(\"sp_AniVidas\").frame=3-vida
+		else:
+			area.queue_free()
+	
+	
+#Esto es para detener el tiempo de creacion y movimiento de bichos		
+func _on_Timer_timeout():
+	get_parent().get_node(\"ControlTiempo\").stop()
+	var auxEni=get_tree().get_nodes_in_group(\"Enemigo\")
+	for aux in auxEni:
+		aux.avance=true
+
+#Esto es para controlar el timepo de inmunidad de panda
+func _on_TimeInmunidad_timeout_TimeInmunidad():
+	inmunidadP=false
+	get_node(\"TimeInmunidad\").stop()
+
+func _on_PandaCuerpo_area_entered_CuerpoAtk(area):
+	var randomScore=randi()%3
+	if (area.is_in_group(\"Enemigo\")):
+		if (Input.is_action_pressed(\"atk\") || inmunidadP || touchAtk):
+			area.queue_free()
+			score=score+scoreRan[randomScore]
+			get_parent().get_node(\"Score\").set_text((\"Score: \"+str(score)))
+		else:
+			inmunidadP=true
+			get_node(\"TimeInmunidad\").start()
+			salto=get_parent().get_node(\"RespawnPanda\").position.x
+			saltoIzq=true
+			saltoDer=false
+			global_position=get_parent().get_node(\"RespawnPanda\").global_position
+			get_node(\"sp_Panda\").flip_h=false
+			vida-=1
+			get_parent().get_node(\"sp_AniVidas\").frame=3-vida
+			if (vida==-1):
+				print (\"GAME OVER\")
+				var escena_game_over=GameOver.instance()
+				get_tree().get_nodes_in_group(\"main\")[0].add_child(escena_game_over)
+				get_parent().get_node(\"GameOver/AnimationPlayer\").play(\"AniGameOver\")
+				get_parent().get_node(\"GameOver/Score_GameOver\").set_text((\"Score: \"+str(score)))
+				get_tree().paused=true
+				vida=0
+	if (area.is_in_group(\"Shield\")):
+		inmunidadP=true
+		get_node(\"TimeInmunidad\").start()
+		area.queue_free()
+	if (area.is_in_group(\"Tiempo\")):
+		area.queue_free()
+		get_parent().get_node(\"ControlTiempo\").start()
+		get_parent().get_node(\"RespawnEni/TimerEni\").stop()
+		get_parent().get_node(\"RespawnItems/TimerItem\").stop()
+		var auxEni=get_tree().get_nodes_in_group(\"Enemigo\")
+		for aux in auxEni:
+			aux.avance=false
+	if (area.is_in_group(\"Vida\")):
+		if (vida<3):
+			vida+=1
+			area.queue_free()
+			get_parent().get_node(\"sp_AniVidas\").frame=3-vida
+		else:
+			area.queue_free()
+
+
+func _on_Btn_Up_button_down():
+	#touchUp=true
+	pass
+
+func _on_Btn_Up_button_up():
+	#touchUp=false
+	pass
+	
+func _on_Btn_Atk_button_down():
+	#touchAtk=true
+	pass
+
+func _on_Btn_Atk_button_up():
+	#touchAtk=false
+	pass
+
+
+func _on_Btn_Pausar_pressed():
+	get_tree().paused=true
+	get_parent().get_node(\"IntroPrueva\").stop()
+	var escena_game_pause=GamePause.instance()
+	get_tree().get_nodes_in_group(\"main\")[0].add_child(escena_game_pause)
+
+
+func _on_Btn_Der_gui_input(ev):
+	if (position.x<372):
+		_saltDer()
+
+
+func _on_Btn_Up_gui_input(ev):
+	touchUp=true
+
+func _on_Btn_Atk_gui_input(ev):
+	touchAtk=true
+
+func _on_Btn_Izq_gui_input(ev):
+	if (position.x>100):
+		_saltIzq()
+
+
+func _on_Btn_Up_focus_exited():
+	pass
+
+func _on_Btn_Up_mouse_exited():
+	touchUp=false
+
+
+func _on_Btn_Atk_mouse_exited():
+	touchAtk=false
+
+
+func _on_Btn_Atk_modal_closed():
+	print (\"entro a modal close\")
+"
+
+[sub_resource type="Animation" id=3]
+
+resource_name = "SubirBajar"
+length = 1.3
+loop = false
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("sp_Panda:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2 ),
+"transitions": PoolRealArray( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 ]
+}
+
+[sub_resource type="GDScript" id=4]
+
+script/source = "extends Position2D
+
+var nivel=3
+var pos=[90,130,213,253,333,372]
+
+export (PackedScene) var enemigo
+export (PackedScene) var enemigoArea
+func _ready():
+	pass
+
+
+func _on_Timer_timeout():
+	var newEnemigo=enemigoArea.instance()
+	var randomPos=randi()%6
+	if (randomPos==1 || randomPos==3 || randomPos==5):
+		newEnemigo.get_node(\"sp_Bicho\").flip_v=true
+	get_tree().get_nodes_in_group(\"main\")[0].add_child(newEnemigo)
+	position.x=pos[randomPos]
+	newEnemigo.global_position=global_position
+	if (nivel<1):
+		newEnemigo.velocidad_y=1.8
+
+
+func _on_ControlTiempo_timeout_Eni():
+	get_node(\"TimerEni\").start()
+
+
+func _on_ControlNiveles_timeout_ControlNivel():
+	nivel-=1
+	if (nivel>0):
+		get_parent().get_node(\"RespawnEni/TimerEni\").wait_time=nivel
+	elif (nivel==0):
+		var auxEni=get_tree().get_nodes_in_group(\"Enemigo\")
+		for aux in auxEni:
+			aux.velocidad_y=1.8
+"
+
+[sub_resource type="Animation" id=5]
+
+length = 1.3
+loop = true
+step = 0.05
+tracks/0/type = "value"
+tracks/0/path = NodePath("PruebaDePanda:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/keys = {
+"times": PoolRealArray( 0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.05, 1.15, 1.25 ),
+"transitions": PoolRealArray( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ),
+"update": 1,
+"values": [ 1, 2, 3, 4, 5, 6, 7, 8, 13, 9, 10, 11, 12 ]
+}
+
+[sub_resource type="Animation" id=6]
+
+length = 1.0
+loop = false
+step = 0.1
+
+[node name="Main" type="Node" index="0" groups=[
+"main",
+]]
+
+pause_mode = 2
+_sections_unfolded = [ "Pause" ]
+__meta__ = {
+"_edit_horizontal_guides_": [ 526.76, 559.675, 573.109 ],
+"_edit_vertical_guides_": [  ]
+}
+
+[node name="Fondo" type="Sprite" parent="." index="0"]
+
+position = Vector2( 229.952, 347.787 )
+scale = Vector2( 0.403208, 0.420258 )
+texture = ExtResource( 1 )
+region_rect = Rect2( 0, 0, 460, 700 )
+_sections_unfolded = [ "Transform" ]
+
+[node name="Score" type="Label" parent="." index="1"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 129.0
+margin_top = 14.0
+margin_right = 213.0
+margin_bottom = 28.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 2
+mouse_default_cursor_shape = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+size_flags_stretch_ratio = 0.0
+custom_fonts/font = SubResource( 1 )
+custom_colors/font_color = Color( 0.0117188, 0.0110607, 0.0110607, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 1 )
+custom_constants/shadow_offset_x = 0
+custom_constants/line_spacing = 0
+custom_constants/shadow_offset_y = 0
+custom_constants/shadow_as_outline = 0
+text = "Score: 0"
+percent_visible = 1.0
+lines_skipped = 0
+max_lines_visible = -1
+_sections_unfolded = [ "Anchor", "Focus", "Hint", "Margin", "Mouse", "Rect", "Size Flags", "custom_constants", "custom_fonts" ]
+
+[node name="Player1" type="Label" parent="." index="2"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 128.0
+margin_top = -1.0
+margin_right = 212.0
+margin_bottom = 13.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 2
+mouse_default_cursor_shape = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+size_flags_stretch_ratio = 0.0
+custom_fonts/font = SubResource( 1 )
+custom_colors/font_color = Color( 0.0117188, 0.0110607, 0.0110607, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 1 )
+custom_constants/shadow_offset_x = 0
+custom_constants/line_spacing = 0
+custom_constants/shadow_offset_y = 0
+custom_constants/shadow_as_outline = 0
+text = "Player1"
+percent_visible = 1.0
+lines_skipped = 0
+max_lines_visible = -1
+_sections_unfolded = [ "Anchor", "Focus", "Hint", "Margin", "Mouse", "Rect", "Size Flags", "custom_constants", "custom_fonts" ]
+
+[node name="ActorPanda" type="Area2D" parent="." index="3"]
+
+pause_mode = 1
+position = Vector2( 212.062, 504.02 )
+scale = Vector2( 0.5, 0.5 )
+input_pickable = true
+gravity_vec = Vector2( 0, 1 )
+gravity = 98.0
+linear_damp = 0.1
+angular_damp = 1.0
+audio_bus_override = false
+audio_bus_name = "Master"
+script = SubResource( 2 )
+_sections_unfolded = [ "Pause", "Pickable", "Transform", "Visibility", "Z Index" ]
+GameOver = ExtResource( 3 )
+GamePause = ExtResource( 4 )
+
+[node name="sp_Panda" type="Sprite" parent="ActorPanda" index="0"]
+
+texture = ExtResource( 5 )
+vframes = 3
+hframes = 5
+frame = 3
+_sections_unfolded = [ "Animation", "Offset", "Transform", "Visibility" ]
+
+[node name="coli_Panda" type="CollisionPolygon2D" parent="ActorPanda" index="1"]
+
+position = Vector2( -199.59, -398.804 )
+build_mode = 0
+polygon = PoolVector2Array( 182.308, 396.381, 167.445, 384.305, 162.491, 376.254, 163.729, 360.462, 160.323, 354.579, 161.562, 345.289, 167.135, 344.67, 172.399, 341.264, 178.902, 346.218, 193.765, 347.147, 202.745, 354.888, 207.699, 363.558, 214.201, 372.229, 210.176, 388.02, 205.222, 397, 226.897, 391.427, 237.734, 394.833, 238.633, 402.776, 177.782, 403.373 )
+_sections_unfolded = [ "Transform", "Visibility" ]
+
+[node name="TimeInmunidad" type="Timer" parent="ActorPanda" index="2"]
+
+process_mode = 1
+wait_time = 3.0
+one_shot = false
+autostart = false
+
+[node name="PandaCuerpo" type="Area2D" parent="ActorPanda" index="3"]
+
+input_pickable = true
+gravity_vec = Vector2( 0, 1 )
+gravity = 98.0
+linear_damp = 0.1
+angular_damp = 1.0
+audio_bus_override = false
+audio_bus_name = "Master"
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="ActorPanda/PandaCuerpo" index="0"]
+
+position = Vector2( -2.29395, 2.67627 )
+build_mode = 0
+polygon = PoolVector2Array( -21.0434, 0.0268555, 39.0039, 1.62689, 32.6538, 10.7648, 25.2195, 10.4551, 22.8056, 19.7142, 20.7279, 29.8152, 28.1622, 38.1788, 25.6841, 48.0911, 21.6572, 52.5827, 14.5327, 52.7376, 6.47891, 50.4144, 5.85941, 41.1215, -0.0260925, 39.5727, -14.1202, 37.5593, -22.0192, 29.6603, -23.1314, 20.0124 )
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="ActorPanda" index="4"]
+
+root_node = NodePath("..")
+autoplay = ""
+playback_process_mode = 1
+playback_default_blend_time = 0.0
+playback_speed = 1.0
+anims/SubirBajar = SubResource( 3 )
+blend_times = [  ]
+
+[node name="RespawnEni" type="Position2D" parent="." index="4"]
+
+pause_mode = 1
+editor/display_folded = true
+position = Vector2( 213.85, 46.0098 )
+script = SubResource( 4 )
+_sections_unfolded = [ "Pause", "Transform" ]
+enemigo = ExtResource( 6 )
+enemigoArea = ExtResource( 7 )
+
+[node name="TimerEni" type="Timer" parent="RespawnEni" index="0"]
+
+process_mode = 1
+wait_time = 3.0
+one_shot = false
+autostart = true
+
+[node name="RespawnPanda" type="Position2D" parent="." index="5"]
+
+position = Vector2( 212.062, 504.02 )
+scale = Vector2( 0.5, 0.5 )
+_sections_unfolded = [ "Transform" ]
+
+[node name="RespawnItems" type="Position2D" parent="." index="6"]
+
+pause_mode = 1
+editor/display_folded = true
+position = Vector2( 296.548, 62.8344 )
+script = ExtResource( 8 )
+_sections_unfolded = [ "Pause", "Transform" ]
+escudoPrueba = ExtResource( 9 )
+vidaPrueba = ExtResource( 10 )
+tiempoPrueba = ExtResource( 11 )
+
+[node name="TimerItem" type="Timer" parent="RespawnItems" index="0"]
+
+process_mode = 1
+wait_time = 15.0
+one_shot = false
+autostart = true
+
+[node name="ControlTiempo" type="Timer" parent="." index="7"]
+
+process_mode = 1
+wait_time = 4.0
+one_shot = false
+autostart = false
+
+[node name="sp_AniVidas" type="Sprite" parent="." index="8"]
+
+position = Vector2( 152.609, 36.7924 )
+scale = Vector2( 0.166302, 0.0989337 )
+texture = ExtResource( 12 )
+vframes = 4
+_sections_unfolded = [ "Animation" ]
+
+[node name="ControlNiveles" type="Timer" parent="." index="9"]
+
+process_mode = 1
+wait_time = 8.0
+one_shot = false
+autostart = true
+
+[node name="PruebaDePanda" type="Sprite" parent="." index="10"]
+
+visible = false
+position = Vector2( 213.798, 280.389 )
+scale = Vector2( 0.467211, 0.520871 )
+texture = ExtResource( 5 )
+vframes = 3
+hframes = 5
+frame = 3
+_sections_unfolded = [ "Animation" ]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." index="11"]
+
+root_node = NodePath("..")
+autoplay = "SubirYBajar"
+playback_process_mode = 1
+playback_default_blend_time = 0.0
+playback_speed = 1.0
+anims/SubirYBajar = SubResource( 5 )
+anims/SubirYBjar = SubResource( 6 )
+blend_times = [  ]
+
+[node name="IntroPrueva" type="AudioStreamPlayer" parent="." index="12"]
+
+stream = ExtResource( 13 )
+volume_db = 0.0
+pitch_scale = 1.0
+autoplay = true
+mix_target = 0
+bus = "Master"
+_sections_unfolded = [ "Pause" ]
+
+[node name="Btn_Izq" type="TextureButton" parent="." index="13"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 23.0
+margin_top = 567.0
+margin_right = 66.0
+margin_bottom = 611.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+focus_mode = 2
+mouse_filter = 0
+mouse_default_cursor_shape = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+texture_normal = ExtResource( 14 )
+expand = true
+_sections_unfolded = [ "Textures" ]
+
+[node name="Btn_Der" type="TextureButton" parent="." index="14"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 398.0
+margin_top = 564.0
+margin_right = 441.0
+margin_bottom = 603.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+focus_mode = 2
+mouse_filter = 0
+mouse_default_cursor_shape = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+texture_normal = ExtResource( 15 )
+expand = true
+_sections_unfolded = [ "Textures" ]
+
+[node name="Btn_Atk" type="TextureButton" parent="." index="15"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 398.0
+margin_top = 480.0
+margin_right = 443.0
+margin_bottom = 531.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+focus_mode = 2
+mouse_filter = 0
+mouse_default_cursor_shape = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+texture_normal = ExtResource( 16 )
+expand = true
+_sections_unfolded = [ "Textures" ]
+
+[node name="Btn_Up" type="TextureButton" parent="." index="16"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 34.0
+margin_top = 476.0
+margin_right = 62.0
+margin_bottom = 528.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+focus_mode = 2
+mouse_filter = 0
+mouse_default_cursor_shape = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+texture_normal = ExtResource( 17 )
+expand = true
+_sections_unfolded = [ "Anchor", "Textures" ]
+
+[node name="Btn_Pausar" type="TextureButton" parent="." index="17"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 426.0
+margin_right = 460.0
+margin_bottom = 24.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+focus_mode = 2
+mouse_filter = 0
+mouse_default_cursor_shape = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+texture_normal = ExtResource( 18 )
+expand = true
+_sections_unfolded = [ "Textures" ]
+
+[connection signal="area_entered" from="ActorPanda" to="ActorPanda" method="_on_ActorPanda_area_entered"]
+
+[connection signal="timeout" from="ActorPanda/TimeInmunidad" to="ActorPanda" method="_on_TimeInmunidad_timeout_TimeInmunidad"]
+
+[connection signal="area_entered" from="ActorPanda/PandaCuerpo" to="ActorPanda" method="_on_PandaCuerpo_area_entered_CuerpoAtk"]
+
+[connection signal="timeout" from="RespawnEni/TimerEni" to="RespawnEni" method="_on_Timer_timeout"]
+
+[connection signal="timeout" from="RespawnItems/TimerItem" to="RespawnItems" method="_on_Timer_timeout"]
+
+[connection signal="timeout" from="ControlTiempo" to="RespawnItems" method="_on_ControlTiempo_timeout_Item"]
+
+[connection signal="timeout" from="ControlTiempo" to="RespawnEni" method="_on_ControlTiempo_timeout_Eni"]
+
+[connection signal="timeout" from="ControlTiempo" to="ActorPanda" method="_on_Timer_timeout"]
+
+[connection signal="timeout" from="ControlNiveles" to="RespawnEni" method="_on_ControlNiveles_timeout_ControlNivel"]
+
+[connection signal="gui_input" from="Btn_Izq" to="ActorPanda" method="_on_Btn_Izq_gui_input"]
+
+[connection signal="gui_input" from="Btn_Der" to="ActorPanda" method="_on_Btn_Der_gui_input"]
+
+[connection signal="button_down" from="Btn_Atk" to="ActorPanda" method="_on_Btn_Atk_button_down"]
+
+[connection signal="button_up" from="Btn_Atk" to="ActorPanda" method="_on_Btn_Atk_button_up"]
+
+[connection signal="gui_input" from="Btn_Atk" to="ActorPanda" method="_on_Btn_Atk_gui_input"]
+
+[connection signal="modal_closed" from="Btn_Atk" to="ActorPanda" method="_on_Btn_Atk_modal_closed"]
+
+[connection signal="mouse_exited" from="Btn_Atk" to="ActorPanda" method="_on_Btn_Atk_mouse_exited"]
+
+[connection signal="button_down" from="Btn_Up" to="ActorPanda" method="_on_Btn_Up_button_down"]
+
+[connection signal="button_up" from="Btn_Up" to="ActorPanda" method="_on_Btn_Up_button_up"]
+
+[connection signal="focus_exited" from="Btn_Up" to="ActorPanda" method="_on_Btn_Up_focus_exited"]
+
+[connection signal="gui_input" from="Btn_Up" to="ActorPanda" method="_on_Btn_Up_gui_input"]
+
+[connection signal="mouse_exited" from="Btn_Up" to="ActorPanda" method="_on_Btn_Up_mouse_exited"]
+
+[connection signal="pressed" from="Btn_Pausar" to="ActorPanda" method="_on_Btn_Pausar_pressed"]
+
+

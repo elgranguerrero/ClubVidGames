@@ -1,0 +1,36 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://KinematicBody2D2.gd" type="Script" id=1]
+[ext_resource path="res://Items/tiempo.png" type="Texture" id=2]
+
+[sub_resource type="RectangleShape2D" id=1]
+
+custom_solver_bias = 0.0
+extents = Vector2( 9.45422, 10 )
+
+[node name="Tiempo" type="KinematicBody2D" groups=[
+"Tiempo",
+]]
+
+position = Vector2( 1.63226, -2.5127 )
+input_pickable = false
+collision_layer = 1
+collision_mask = 1
+collision/safe_margin = 0.08
+script = ExtResource( 1 )
+
+[node name="sp_Tiempo" type="Sprite" parent="." index="0"]
+
+position = Vector2( -0.301796, 0.440879 )
+scale = Vector2( 0.181915, 0.166869 )
+texture = ExtResource( 2 )
+region_enabled = true
+region_rect = Rect2( 0, 0, 98, 98 )
+_sections_unfolded = [ "Region" ]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." index="1"]
+
+position = Vector2( -0.134041, 0.938297 )
+shape = SubResource( 1 )
+
+
