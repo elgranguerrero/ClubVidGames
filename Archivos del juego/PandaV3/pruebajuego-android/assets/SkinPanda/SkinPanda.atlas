@@ -1,0 +1,27 @@
+
+SkinPanda.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Font export
+  rotate: false
+  xy: 1, 334
+  size: 475, 142
+  orig: 475, 142
+  offset: 0, 0
+  index: -1
+botonCartel
+  rotate: false
+  xy: 1, 271
+  size: 323, 61
+  orig: 323, 61
+  offset: 0, 0
+  index: -1
+botonCartelpeque
+  rotate: false
+  xy: 1, 208
+  size: 323, 61
+  orig: 323, 61
+  offset: 0, 0
+  index: -1

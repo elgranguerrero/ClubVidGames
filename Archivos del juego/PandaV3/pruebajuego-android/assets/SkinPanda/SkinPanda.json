@@ -1,0 +1,31 @@
+{
+com.badlogic.gdx.graphics.g2d.BitmapFont: {
+	Font_export: {
+		file: Font export.fnt
+	}
+}
+com.badlogic.gdx.scenes.scene2d.ui.Button$ButtonStyle: {
+	default: {
+		up: botonCartel
+	}
+}
+com.badlogic.gdx.scenes.scene2d.ui.ImageButton$ImageButtonStyle: {
+	default: {
+		up: botonCartelpeque
+		down: botonCartel
+		over: botonCartelpeque
+		checked: botonCartel
+		checkedOver: botonCartelpeque
+	}
+}
+com.badlogic.gdx.scenes.scene2d.ui.Label$LabelStyle: {
+	default: {
+		font: Font export
+	}
+}
+com.badlogic.gdx.scenes.scene2d.ui.TextTooltip$TextTooltipStyle: {
+	default: {
+		label: default
+	}
+}
+}
